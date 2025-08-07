@@ -193,6 +193,7 @@ def index():
 
     return render_template("index.html", result=result, drive_link=drive_link, error=error, history=session.get('history', []))
 
-# --- Run App ---
 if __name__ == "__main__":
-    app.run(debug=True, port=10000)
+    port = int(os.environ.get("PORT", 10000))  # <- მთავარია PORT-ს წაიკითხავს
+    app.run(debug=True, host="0.0.0.0", port=port)
+
