@@ -18,7 +18,7 @@ load_dotenv()
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "random_default_secret_key")
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'  # Only for dev
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'  # Only for development
 
 # --- Gemini API Configuration ---
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
@@ -100,19 +100,19 @@ def save_and_return_link(idea_text, base_filename="idea_analysis"):
     filename = f"{base_filename}.txt"
     filepath = save_analysis_to_file(result, filename)
     drive_link = upload_to_user_drive(filepath, filename)
+
+    # Save link to history
+    if 'history' not in session:
+        session['history'] = []
+    session['history'].append({
+        'filename': filename,
+        'drive_link': drive_link
+    })
+
     return drive_link, result
 
 # --- Google OAuth2 Routes ---
 @app.before_request
-# შენახვის შემდეგ, დაამატე ბმული session['history'] სიაში
-if 'history' not in session:
-    session['history'] = []
-
-session['history'].append({
-    'filename': filename,
-    'drive_link': drive_link
-})
-
 def require_login():
     allowed = ['login', 'oauth2callback', 'static']
     if request.endpoint in allowed or 'credentials' in session:
@@ -124,7 +124,7 @@ def login():
     flow = Flow.from_client_secrets_file(
         'client_secret.json',
         scopes=['https://www.googleapis.com/auth/drive.file'],
-        redirect_uri="https://Brainscaner.onrender.com/oauth2callback"  # ან url_for('oauth2callback', _external=True)
+        redirect_uri="https://Brainscaner.onrender.com/oauth2callback"
     )
     auth_url, state = flow.authorization_url(
         access_type='offline', include_granted_scopes='true', prompt='consent')
@@ -145,6 +145,7 @@ def oauth2callback():
 
 @app.route("/logout")
 def logout():
+    session.pop('history', None)  # Clear history on logout
     session.clear()
     return redirect(url_for("login"))
 
@@ -182,7 +183,7 @@ def index():
                 idea_text = extract_text_from_pptx(filepath)
             else:
                 error = "❌ მხოლოდ .pdf და .pptx ფაილებია მხარდაჭერილი."
-                return render_template("index.html", result=None, drive_link=None, error=error)
+                return render_template("index.html", result=None, drive_link=None, error=error, history=session.get('history', []))
             source_name = file.filename
         else:
             error = "გთხოვთ, შეიყვანეთ ტექსტი ან ატვირთეთ ფაილი."
@@ -190,7 +191,7 @@ def index():
         if idea_text.strip():
             drive_link, result = save_and_return_link(idea_text, base_filename=source_name)
 
-    return render_template("index.html", result=result, drive_link=drive_link, error=error)
+    return render_template("index.html", result=result, drive_link=drive_link, error=error, history=session.get('history', []))
 
 # --- Run App ---
 if __name__ == "__main__":
