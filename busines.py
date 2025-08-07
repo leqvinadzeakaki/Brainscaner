@@ -102,13 +102,17 @@ def save_and_return_link(idea_text, base_filename="idea_analysis"):
     drive_link = upload_to_user_drive(filepath, filename)
     
     # Store uploaded file info in session history
-    if 'history' not in session:
-        session['history'] = []
-    session['history'].append({
-        'filename': filename,
-        'drive_link': drive_link
-    })
-    
+ if 'history' not in session:
+    session['history'] = []
+
+session['history'].append({
+    'filename': filename,
+    'drive_link': drive_link
+})
+
+# შეინახე მხოლოდ ბოლო 100 ჩანაწერი
+session['history'] = session['history'][-100:]
+
     return drive_link, result
 
 # --- Google OAuth2 Routes ---
