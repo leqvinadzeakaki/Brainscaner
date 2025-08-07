@@ -47,6 +47,14 @@
         <button type="submit" class="submit-button">ანალიზი</button>
       </div>
     </form>
+    <!-- Loading Indicator -->
+<div id="loading-indicator" style="display:none; margin-top: 1rem;">
+  <div style="background:#eee; height:24px; border-radius:12px; overflow:hidden;">
+    <div id="progress-bar" style="height:100%; width:0%; background:#4CAF50; text-align:center; color:white; line-height:24px; transition: width 0.3s;">0%</div>
+  </div>
+  <p style="margin-top:0.5rem;">გთხოვთ დაიცადოთ, მიმდინარეობს ანალიზი...</p>
+</div>
+
 
     <!-- Analysis Result Display -->
     {% if result %}
@@ -58,16 +66,38 @@
 
   </div>
 
-  <script>
-    function updateFileName(input) {
-      const fileNameDisplay = document.getElementById('file-name-display');
-      if (input.files.length > 0) {
-        fileNameDisplay.textContent = `არჩეული ფაილი: ${input.files[0].name}`;
-      } else {
-        fileNameDisplay.textContent = '';
-      }
+ <script>
+  function updateFileName(input) {
+    const fileNameDisplay = document.getElementById('file-name-display');
+    if (input.files.length > 0) {
+      fileNameDisplay.textContent = `არჩეული ფაილი: ${input.files[0].name}`;
+    } else {
+      fileNameDisplay.textContent = '';
     }
-  </script>
+  }
+
+  document.querySelector('.idea-form').addEventListener('submit', function(e) {
+    const loadingDiv = document.getElementById("loading-indicator");
+    const progressBar = document.getElementById("progress-bar");
+
+    loadingDiv.style.display = "block";
+    progressBar.style.width = "0%";
+    progressBar.textContent = "0%";
+
+    let percent = 0;
+    const interval = setInterval(() => {
+      if (percent < 99) {
+        percent += Math.floor(Math.random() * 3);  // ნელა ან სწრაფად ივსება
+        if (percent > 99) percent = 99;
+        progressBar.style.width = percent + "%";
+        progressBar.textContent = percent + "%";
+      }
+    }, 200);
+
+    // form-ის გაგზავნის შემდეგ როცა ახალი გვერდი ჩაიტვირთება, interval გაუქმდება ავტომატურად
+  });
+</script>
+
 {% if drive_link %}
 
 {% endif %}
