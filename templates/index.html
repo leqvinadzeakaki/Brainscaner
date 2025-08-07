@@ -8,132 +8,53 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Georgian:wght@400;500;700&display=swap" rel="stylesheet">
-  <style>
-    body {
-      font-family: 'Noto Sans Georgian', sans-serif;
-      margin: 0;
-      padding: 0;
-      background: #f2f2f2;
-    }
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      display: flex;
-      padding: 2rem;
-      gap: 2rem;
-    }
-    .main-content {
-      flex: 3;
-    }
-    .sidebar {
-      flex: 1;
-      background-color: #ffffff;
-      padding: 1rem;
-      border-radius: 8px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.05);
-    }
-    .header h1 {
-      margin-bottom: 0.3rem;
-    }
-    .error-box {
-      color: red;
-      background: #ffe0e0;
-      padding: 0.5rem;
-      border-radius: 5px;
-    }
-    .idea-form textarea {
-      width: 100%;
-      padding: 1rem;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-      resize: vertical;
-    }
-    .form-actions {
-      margin-top: 1rem;
-    }
-    .submit-button {
-      margin-top: 1rem;
-      padding: 0.5rem 1rem;
-      border: none;
-      background-color: #007bff;
-      color: white;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-    .result-box {
-      background-color: #e6f2ff;
-      padding: 1rem;
-      border-radius: 6px;
-      margin-top: 1rem;
-      white-space: pre-wrap;
-    }
-    .history-box h3 {
-      margin-bottom: 0.5rem;
-    }
-    .history-box ul {
-      list-style-type: none;
-      padding-left: 0;
-    }
-    .history-box li {
-      margin-bottom: 0.5rem;
-    }
-    .history-box a {
-      text-decoration: none;
-      color: #007bff;
-    }
-  </style>
 </head>
 <body>
   <div class="container">
+    <div class="header">
+      <h1>ბიზნეს იდეის ანალიზი</h1>
+      <p>შეიყვანეთ თქვენი იდეა ტექსტის სახით ან ატვირთეთ PDF/PPTX ფაილი, რომ მიიღოთ დეტალური შეფასება AI-სგან.</p>
+    </div>
 
-    <!-- Main Area -->
-    <div class="main-content">
-      <div class="header">
-        <h1>ბიზნეს იდეის ანალიზი</h1>
-        <p>შეიყვანეთ თქვენი იდეა ტექსტის სახით ან ატვირთეთ PDF/PPTX ფაილი, რომ მიიღოთ დეტალური შეფასება AI-სგან.</p>
-      </div>
+    <!-- Error Message Display -->
+    {% if error %}
+    <div class="error-box">
+      <p>{{ error }}</p>
+    </div>
+    {% endif %}
 
-      {% if error %}
-        <div class="error-box">{{ error }}</div>
-      {% endif %}
+    <form method="POST" enctype="multipart/form-data" class="idea-form">
+      <textarea name="text_idea" rows="8" placeholder="მაგ: შევქმნათ აპლიკაცია, რომელიც ფერმერებს დაეხმარება ამინდის პროგნოზირებაში..."></textarea>
 
-      <form method="POST" enctype="multipart/form-data" class="idea-form">
-        <textarea name="text_idea" rows="8" placeholder="მაგ: შევქმნათ აპლიკაცია, რომელიც ფერმერებს დაეხმარება ამინდის პროგნოზირებაში..."></textarea>
-
-        <div class="form-actions">
-          <label for="file-upload">
-            📎 ფაილის დამატება (.pdf, .pptx)
+      <div class="form-actions">
+        <!-- File Upload Section -->
+        <div class="file-upload-wrapper">
+          <label for="file-upload" class="file-upload-label" title="ფაილის ატვირთვა (.pdf, .pptx)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+            <span>ფაილის დამატება</span>
           </label>
           <input type="file" id="file-upload" name="file" accept=".pdf,.pptx" onchange="updateFileName(this)">
           <span id="file-name-display"></span>
 
-          <button type="submit" class="submit-button">ანალიზი</button>
+          <!-- Google Drive Link Display -->
+          {% if drive_link %}
+            <span class="drive-link-display">
+              📎 <a href="{{ drive_link }}" target="_blank">ატვირთული ფაილის ნახვა</a>
+            </span>
+          {% endif %}
         </div>
-      </form>
 
-      {% if result %}
-        <div class="result-box">
-          <h3>🔍 ანალიზის შედეგი:</h3>
-          <pre>{{ result }}</pre>
-        </div>
-      {% endif %}
-    </div>
-
-    <!-- Sidebar - History -->
-    <div class="sidebar">
-      <div class="history-box">
-        <h3>📚 ისტორია</h3>
-        {% if history %}
-          <ul>
-            {% for item in history %}
-              <li>📄 <a href="{{ item.drive_link }}" target="_blank">{{ item.filename }}</a></li>
-            {% endfor %}
-          </ul>
-        {% else %}
-          <p>ჯერჯერობით ისტორია არ არის</p>
-        {% endif %}
+        <button type="submit" class="submit-button">ანალიზი</button>
       </div>
+    </form>
+
+    <!-- Analysis Result Display -->
+    {% if result %}
+    <div class="result-box">
+      <h3>🔍 ანალიზის შედეგი:</h3>
+      <pre>{{ result }}</pre>
     </div>
+    {% endif %}
 
   </div>
 
@@ -147,5 +68,25 @@
       }
     }
   </script>
+{% if drive_link %}
+  <div class="result-link">
+    📎 <a href="{{ drive_link }}" target="_blank">ჩემი ფაილი Google Drive-ზე</a>
+  </div>
+{% endif %}
+
+
+    {% if history %}
+    <div class="history-box" style="margin-top:2rem; padding:1rem; background:#f7f7f7; border:1px solid #ccc; border-radius:6px;">
+      <h3>📚 ატვირთული ფაილების ისტორია</h3>
+      <ul style="list-style:none; padding-left:0;">
+        {% for item in history %}
+          <li style="margin-bottom: 0.5rem;">
+            📎 <a href="{{ item.drive_link }}" target="_blank">{{ item.filename }}</a>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
 </body>
 </html>
