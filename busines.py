@@ -104,6 +104,15 @@ def save_and_return_link(idea_text, base_filename="idea_analysis"):
 
 # --- Google OAuth2 Routes ---
 @app.before_request
+# შენახვის შემდეგ, დაამატე ბმული session['history'] სიაში
+if 'history' not in session:
+    session['history'] = []
+
+session['history'].append({
+    'filename': filename,
+    'drive_link': drive_link
+})
+
 def require_login():
     allowed = ['login', 'oauth2callback', 'static']
     if request.endpoint in allowed or 'credentials' in session:
