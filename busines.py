@@ -100,18 +100,18 @@ def save_and_return_link(idea_text, base_filename="idea_analysis"):
     filename = f"{base_filename}.txt"
     filepath = save_analysis_to_file(result, filename)
     drive_link = upload_to_user_drive(filepath, filename)
-    
+
     # Store uploaded file info in session history
- if 'history' not in session:
-    session['history'] = []
+    if 'history' not in session:
+        session['history'] = []
 
-session['history'].append({
-    'filename': filename,
-    'drive_link': drive_link
-})
+    session['history'].append({
+        'filename': filename,
+        'drive_link': drive_link
+    })
 
-# შეინახე მხოლოდ ბოლო 100 ჩანაწერი
-session['history'] = session['history'][-100:]
+    # შეინახე მხოლოდ ბოლო 30 ჩანაწერი
+    session['history'] = session['history'][-30:]
 
     return drive_link, result
 
@@ -128,7 +128,7 @@ def login():
     flow = Flow.from_client_secrets_file(
         'client_secret.json',
         scopes=['https://www.googleapis.com/auth/drive.file'],
-        redirect_uri="https://Brainscaner.onrender.com/oauth2callback"  # ან url_for('oauth2callback', _external=True)
+        redirect_uri="https://Brainscaner.onrender.com/oauth2callback"
     )
     auth_url, state = flow.authorization_url(
         access_type='offline', include_granted_scopes='true', prompt='consent')
@@ -186,7 +186,7 @@ def index():
                 idea_text = extract_text_from_pptx(filepath)
             else:
                 error = "❌ მხოლოდ .pdf და .pptx ფაილებია მხარდაჭერილი."
-                return render_template("index.html", result=None, drive_link=None, error=error)
+                return render_template("index.html", result=None, drive_link=None, error=error, history=session.get('history', []))
             source_name = file.filename
         else:
             error = "გთხოვთ, შეიყვანეთ ტექსტი ან ატვირთეთ ფაილი."
@@ -198,4 +198,5 @@ def index():
 
 # --- Run App ---
 if __name__ == "__main__":
-    app.run(debug=True, port=10000)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(debug=True, host="0.0.0.0", port=port)
