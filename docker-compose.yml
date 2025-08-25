@@ -1,0 +1,29 @@
+version: "3.9"
+
+services:
+  brainscanner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: brainscanner
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./Brainscaner-master/.env
+    volumes:
+      - ./Brainscaner-master/uploads:/app/uploads
+      - ./Brainscaner-master/client_secret.json:/app/client_secret.json:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    environment:
+      - GUNICORN_CMD_ARGS=--access-logfile - --error-logfile -
+      - FORWARDED_ALLOW_IPS=*
+
+networks:
+  default:
+    name: brainscanner_net
