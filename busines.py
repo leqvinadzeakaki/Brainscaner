@@ -140,14 +140,18 @@ def require_login():
 @app.route("/login")
 def login():
     flow = Flow.from_client_secrets_file(
-        'client_secret.json',
-        scopes=['https://www.googleapis.com/auth/drive.file'],
-        redirect_uri="https://Brainscaner.onrender.com/oauth2callback"
+        "client_secret.json",
+        scopes=["https://www.googleapis.com/auth/drive.file"],
+        redirect_uri=url_for("oauth2callback", _external=True, _scheme="https"),
     )
-    auth_url, state = flow.authorization_url(
-        access_type='offline', include_granted_scopes='true', prompt='consent')
-    session['state'] = state
-    return redirect(auth_url)
+    authorization_url, state = flow.authorization_url(
+        access_type="offline",
+        include_granted_scopes="true",
+        prompt="consent",
+    )
+    session["state"] = state  # აუცილებელია
+    return redirect(authorization_url)
+
 
 @app.route("/oauth2callback")
 def oauth2callback():
