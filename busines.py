@@ -18,14 +18,15 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me")
 
 app.config.update(
-    SESSION_COOKIE_SECURE=True,
-    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=True,      # მხოლოდ HTTPS-ზე გაეგზავნება session cookie
+    SESSION_COOKIE_SAMESITE="None",  # OAuth-ის cross-site redirect-ზე ქუქი არ დაიკარგოს
     PREFERRED_URL_SCHEME="https",
 )
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 # --- Gemini API Config ---
+# ENV-ში უნდა გქონდეს GEMINI_API_KEY=<შენი key>
 genai.configure(api_key=os.environ["GEMINI_API_KEY"])
 model = genai.GenerativeModel("gemini-1.5-flash")
 
@@ -61,12 +62,12 @@ def analyze_idea(idea_text):
 ბიზნეს იდეა:
 {idea_text}
 
-1. იდეის მოკლე რეზიუმე  
-2. მიზნობრივი აუდიტორია  
-3. მონეტიზაციის გზები  
-4. ანალოგიური პროდუქტები ან კონკურენტები  
-5. იდეის სიძლიერეები და სუსტი მხარეები  
-6. გრძელვადიანი მდგრადობის პროგნოზი  
+1. იდეის მოკლე რეზიუმე
+2. მიზნობრივი აუდიტორია
+3. მონეტიზაციის გზები
+4. ანალოგიური პროდუქტები ან კონკურენტები
+5. იდეის სიძლიერეები და სუსტი მხარეები
+6. გრძელვადიანი მდგრადობის პროგნოზი
 7. რეკომენდაცია იდეის გაუმჯობესებისთვის
 """
     try:
@@ -110,17 +111,20 @@ def save_and_return_link(idea_text, base_filename="idea_analysis"):
 
     if 'history' not in session:
         session['history'] = []
-    session['history'].append({
-        'filename': filename,
-        'drive_link': drive_link
-    })
+    session['history'].append({'filename': filename, 'drive_link': drive_link})
     session['history'] = session['history'][-30:]
     return drive_link, result
+
+# --- Health check (Render-friendly) ---
+@app.route("/healthz")
+def healthz():
+    return "ok", 200
 
 # --- OAuth2 ---
 @app.before_request
 def require_login():
-    allowed = ['login', 'oauth2callback', 'static', 'index']
+    # უფლება მივცეთ ამ endpoint-ებს ლოგინამდე:
+    allowed = ['login', 'oauth2callback', 'static', 'index', 'healthz']
     if request.endpoint in allowed or 'credentials' in session:
         return
     return redirect(url_for('login'))
@@ -206,7 +210,7 @@ def index():
 
     return render_template("index.html", result=result, drive_link=drive_link, error=error, history=session.get('history', []))
 
-# --- Run ---
+# --- Run (local dev) ---
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(debug=True, host="0.0.0.0", port=port)
