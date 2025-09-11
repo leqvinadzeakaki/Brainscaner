@@ -21,7 +21,7 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'  # Only for dev
 
 # --- Gemini API Configuration ---
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+genai.configure(api_key=os.getenv("AIzaSyBz7yRvZWZPEuV0cp1925vqOe0LUF8agwc"))
 model = genai.GenerativeModel("gemini-1.5-flash")
 
 # --- Helpers ---
@@ -195,12 +195,6 @@ def index():
             drive_link, result = save_and_return_link(idea_text, base_filename=source_name)
 
     return render_template("index.html", result=result, drive_link=drive_link, error=error, history=session.get('history', []))
-
-# --- Health check ---
-@app.route("/healthz")
-def healthz():
-    return "ok", 200
-
 
 # --- Run App ---
 if __name__ == "__main__":
