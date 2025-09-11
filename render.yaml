@@ -12,5 +12,5 @@ services:
     healthCheckPath: /healthz
     plan: free
     envVars:
-      - key: GEMINI_API_KEY
+      - key: AIzaSyBz7yRvZWZPEuV0cp1925vqOe0LUF8agwc
         sync: false   # დააყენებ Render-ის დეშბორდიდან
