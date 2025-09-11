@@ -18,7 +18,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = os.environ["9639"]  # აუცილებელია session-ისთვის
+app.secret_key = os.environ["random-long-string"]  # აუცილებელია session-ისთვის
 
 # Render-ზე რეკომენდებული cookie-სეტინგები
 app.config.update(
