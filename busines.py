@@ -155,15 +155,23 @@ def login():
 
 @app.route("/oauth2callback")
 def oauth2callback():
+    state = session.get("state")
+    if not state:
+        abort(400, "Missing OAuth state in session")
+
     flow = Flow.from_client_secrets_file(
-        'client_secret.json',
-        scopes=['https://www.googleapis.com/auth/drive.file'],
-        state=session['state'],
-        redirect_uri="https://Brainscaner.onrender.com/oauth2callback"
+        "client_secret.json",
+        scopes=["https://www.googleapis.com/auth/drive.file"],
+        state=state,
+        redirect_uri=url_for("oauth2callback", _external=True, _scheme="https"),
     )
     flow.fetch_token(authorization_response=request.url)
-    session['credentials'] = credentials_to_dict(flow.credentials)
-    return redirect(url_for('index'))
+
+    credentials = flow.credentials
+    # აქ გააკეთე რისი შენახვაც გინდა session-ში/DB-ში, ან მაშინვე redirect მთავარზე
+    session.pop("state", None)
+    return redirect(url_for("index"))  # ან "/" თუ index სახელად გაქვს
+
 
 @app.route("/logout")
 def logout():
