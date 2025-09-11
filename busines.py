@@ -12,6 +12,21 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 import google.oauth2.credentials
 from dotenv import load_dotenv
+# ზედა ნაწილში, იმპორტების შემდეგ
+from flask import Flask, render_template, request, session, redirect, url_for, abort
+from dotenv import load_dotenv
+load_dotenv()
+
+app = Flask(__name__)
+app.secret_key = os.environ["SECRET_KEY"]  # აუცილებელია session-ისთვის
+
+# Render-ზე რეკომენდებული cookie-სეტინგები
+app.config.update(
+    SESSION_COOKIE_SECURE=True,     # მხოლოდ HTTPS
+    SESSION_COOKIE_SAMESITE="Lax",  # OAuth-სთვის კარგია
+    PREFERRED_URL_SCHEME="https",
+)
+
 load_dotenv()
 
 app = Flask(__name__)
