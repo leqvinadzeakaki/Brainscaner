@@ -1,41 +1,32 @@
 import os
-import pathlib
-import pickle
 import pdfplumber
 from pptx import Presentation
-from flask import Flask, render_template, request, session, redirect, url_for
+from flask import Flask, render_template, request, session, redirect, url_for, abort
 from dotenv import load_dotenv
+
 import google.generativeai as genai
 from google_auth_oauthlib.flow import Flow
+import google.oauth2.credentials
 import google.auth.transport.requests
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
-import google.oauth2.credentials
-from dotenv import load_dotenv
-# ზედა ნაწილში, იმპორტების შემდეგ
-from flask import Flask, render_template, request, session, redirect, url_for, abort
-from dotenv import load_dotenv
+
+# --- Flask Config ---
 load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = os.environ["SECRET_KEY"]
+app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me")
 
-# Render-ზე რეკომენდებული cookie-სეტინგები
 app.config.update(
-    SESSION_COOKIE_SECURE=True,     # მხოლოდ HTTPS
-    SESSION_COOKIE_SAMESITE="Lax",  # OAuth-სთვის კარგია
+    SESSION_COOKIE_SECURE=True,
+    SESSION_COOKIE_SAMESITE="Lax",
     PREFERRED_URL_SCHEME="https",
 )
-# --- Flask App Configuration ---
-app = Flask(__name__)
-load_dotenv()
-app.secret_key = os.getenv("FLASK_SECRET_KEY", "random_default_secret_key")
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'  # Only for dev
 
-# --- Gemini API Configuration ---
-genai.configure(api_key=os.getenv("AIzaSyBz7yRvZWZPEuV0cp1925vqOe0LUF8agwc"))
+# --- Gemini API Config ---
+genai.configure(api_key=os.environ["GEMINI_API_KEY"])
 model = genai.GenerativeModel("gemini-1.5-flash")
 
 # --- Helpers ---
@@ -91,6 +82,8 @@ def save_analysis_to_file(content, filename="analysis.txt"):
     return filepath
 
 def upload_to_user_drive(filepath, filename, folder_id=None):
+    if "credentials" not in session:
+        return None
     creds = google.oauth2.credentials.Credentials(**session['credentials'])
     service = build('drive', 'v3', credentials=creds)
 
@@ -115,24 +108,19 @@ def save_and_return_link(idea_text, base_filename="idea_analysis"):
     filepath = save_analysis_to_file(result, filename)
     drive_link = upload_to_user_drive(filepath, filename)
 
-    # Store uploaded file info in session history
     if 'history' not in session:
         session['history'] = []
-
     session['history'].append({
         'filename': filename,
         'drive_link': drive_link
     })
-
-    # შეინახე მხოლოდ ბოლო 30 ჩანაწერი
     session['history'] = session['history'][-30:]
-
     return drive_link, result
 
-# --- Google OAuth2 Routes ---
+# --- OAuth2 ---
 @app.before_request
 def require_login():
-    allowed = ['login', 'oauth2callback', 'static']
+    allowed = ['login', 'oauth2callback', 'static', 'index']
     if request.endpoint in allowed or 'credentials' in session:
         return
     return redirect(url_for('login'))
@@ -149,9 +137,8 @@ def login():
         include_granted_scopes="true",
         prompt="consent",
     )
-    session["state"] = state  # აუცილებელია
+    session["state"] = state
     return redirect(authorization_url)
-
 
 @app.route("/oauth2callback")
 def oauth2callback():
@@ -168,25 +155,22 @@ def oauth2callback():
     flow.fetch_token(authorization_response=request.url)
 
     credentials = flow.credentials
-    # აქ გააკეთე რისი შენახვაც გინდა session-ში/DB-ში, ან მაშინვე redirect მთავარზე
-    session.pop("state", None)
-    return redirect(url_for("index"))  # ან "/" თუ index სახელად გაქვს
+    session["credentials"] = {
+        "token": credentials.token,
+        "refresh_token": credentials.refresh_token,
+        "token_uri": credentials.token_uri,
+        "client_id": credentials.client_id,
+        "client_secret": credentials.client_secret,
+        "scopes": credentials.scopes,
+    }
 
+    session.pop("state", None)
+    return redirect(url_for("index"))
 
 @app.route("/logout")
 def logout():
     session.clear()
     return redirect(url_for("login"))
-
-def credentials_to_dict(credentials):
-    return {
-        'token': credentials.token,
-        'refresh_token': credentials.refresh_token,
-        'token_uri': credentials.token_uri,
-        'client_id': credentials.client_id,
-        'client_secret': credentials.client_secret,
-        'scopes': credentials.scopes
-    }
 
 # --- Main Route ---
 @app.route("/", methods=["GET", "POST"])
@@ -222,7 +206,7 @@ def index():
 
     return render_template("index.html", result=result, drive_link=drive_link, error=error, history=session.get('history', []))
 
-# --- Run App ---
+# --- Run ---
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(debug=True, host="0.0.0.0", port=port)
