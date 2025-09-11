@@ -196,6 +196,12 @@ def index():
 
     return render_template("index.html", result=result, drive_link=drive_link, error=error, history=session.get('history', []))
 
+# --- Health check ---
+@app.route("/healthz")
+def healthz():
+    return "ok", 200
+
+
 # --- Run App ---
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
