@@ -11,6 +11,12 @@ import google.auth.transport.requests
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 import google.oauth2.credentials
+from dotenv import load_dotenv
+load_dotenv()
+
+app = Flask(__name__)
+app.secret_key = os.environ["9639"]  # აუცილებელია, არ გამოიყენო os.urandom() პროდში
+
 
 # --- Flask App Configuration ---
 app = Flask(__name__)
