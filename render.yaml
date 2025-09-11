@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: brainscanner
+    env: python
+    # თუ შენი repo-ში აპი სხვისი საქაღალდიდან უნდა გაეშვას,
+    # ჩაწერე ქვემოთ სწორი გზა (მაგ.: Brainscaner-master-9,11,2025/Brainscaner-master)
+    # თუ პროექტის root-შივეა Procfile/requirements.txt, წაშალე მთელი rootDir ხაზი.
+    rootDir: Brainscaner-master-9,11,2025/Brainscaner-master
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn busines:app
+    autoDeploy: true
+    healthCheckPath: /healthz
+    plan: free
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false   # დააყენებ Render-ის დეშბორდიდან
