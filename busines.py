@@ -18,7 +18,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = os.environ["SECRET_KEY"]  # აუცილებელია session-ისთვის
+app.secret_key = os.environ["9639"]  # აუცილებელია session-ისთვის
 
 # Render-ზე რეკომენდებული cookie-სეტინგები
 app.config.update(
@@ -26,13 +26,6 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="Lax",  # OAuth-სთვის კარგია
     PREFERRED_URL_SCHEME="https",
 )
-
-load_dotenv()
-
-app = Flask(__name__)
-app.secret_key = os.environ["9639"]  # აუცილებელია, არ გამოიყენო os.urandom() პროდში
-
-
 # --- Flask App Configuration ---
 app = Flask(__name__)
 load_dotenv()
