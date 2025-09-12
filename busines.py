@@ -19,7 +19,7 @@ app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me")
 
 app.config.update(
     SESSION_COOKIE_SECURE=True,      # მხოლოდ HTTPS-ზე გაეგზავნება session cookie
-    SESSION_COOKIE_SAMESITE="None",  # OAuth-ის cross-site redirect-ზე ქუქი არ დაიკარგოს
+    SESSION_COOKIE_SAMESITE="None",  # OAuth cross-site redirect-ზე ქუქი არ დაიკარგოს
     PREFERRED_URL_SCHEME="https",
 )
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -68,7 +68,7 @@ def analyze_idea(idea_text):
 4. ანალოგიური პროდუქტები ან კონკურენტები
 5. იდეის სიძლიერეები და სუსტი მხარეები
 6. გრძელვადიანი მდგრადობის პროგნოზი
-7. რეკომენდაცია.ideის გაუმჯობესებისთვის
+7. რეკომენდაცია იდეის გაუმჯობესებისთვის
 """
     try:
         response = model.generate_content(prompt)
@@ -123,7 +123,7 @@ def healthz():
 # --- OAuth2 ---
 @app.before_request
 def require_login():
-    # ლოგინამდე დაშვებული endpoint-ები (root '/' აღარ შედის აქ!)
+    # ლოგინამდე დაშვებული endpoint-ები (root '/' აქ არ შედის!)
     allowed = ['login', 'oauth2callback', 'static', 'healthz']
     if request.endpoint in allowed or 'credentials' in session:
         return
@@ -147,8 +147,10 @@ def login():
 @app.route("/oauth2callback")
 def oauth2callback():
     state = session.get("state")
+
+    # თუ სესიაში state არაა, არ ვაძლევთ 400-ს — ვაბრუნებთ /login-ზე, რომ სუფთად დაიწყოს flow
     if not state:
-        abort(400, "Missing OAuth state in session")
+        return redirect(url_for("login"))
 
     flow = Flow.from_client_secrets_file(
         "client_secret.json",
