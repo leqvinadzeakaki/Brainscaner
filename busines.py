@@ -68,7 +68,7 @@ def analyze_idea(idea_text):
 4. ანალოგიური პროდუქტები ან კონკურენტები
 5. იდეის სიძლიერეები და სუსტი მხარეები
 6. გრძელვადიანი მდგრადობის პროგნოზი
-7. რეკომენდაცია იდეის გაუმჯობესებისთვის
+7. რეკომენდაცია.ideის გაუმჯობესებისთვის
 """
     try:
         response = model.generate_content(prompt)
@@ -123,8 +123,8 @@ def healthz():
 # --- OAuth2 ---
 @app.before_request
 def require_login():
-    # უფლება მივცეთ ამ endpoint-ებს ლოგინამდე:
-    allowed = ['login', 'oauth2callback', 'static', 'index', 'healthz']
+    # ლოგინამდე დაშვებული endpoint-ები (root '/' აღარ შედის აქ!)
+    allowed = ['login', 'oauth2callback', 'static', 'healthz']
     if request.endpoint in allowed or 'credentials' in session:
         return
     return redirect(url_for('login'))
