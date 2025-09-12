@@ -7,37 +7,27 @@ from dotenv import load_dotenv
 import google.generativeai as genai
 from google_auth_oauthlib.flow import Flow
 import google.oauth2.credentials
+import google.auth.transport.requests
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
-# --- ENV ---
+# --- Flask Config ---
 load_dotenv()
-ENV = os.getenv("APP_ENV", "local").lower()  # local / prod
-PORT = int(os.getenv("PORT", 5000))
 
-# --- Flask app ---
-app = Flask(__name__, static_folder="static", template_folder="templates")
-app.secret_key = os.getenv("SECRET_KEY", "dev-secret-change-me")
+app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me")
 
-# ლოკალზე ქუქი პარამეტრები
-if ENV == "local":
-    app.config.update(
-        SESSION_COOKIE_SECURE=False,
-        SESSION_COOKIE_SAMESITE="Lax",
-        PREFERRED_URL_SCHEME="http",
-    )
-else:
-    app.config.update(
-        SESSION_COOKIE_SECURE=True,
-        SESSION_COOKIE_SAMESITE="None",
-        PREFERRED_URL_SCHEME="https",
-    )
-
+app.config.update(
+    SESSION_COOKIE_SECURE=True,      # მხოლოდ HTTPS-ზე გაეგზავნება session cookie
+    SESSION_COOKIE_SAMESITE="None",  # OAuth cross-site redirect-ზე ქუქი არ დაიკარგოს
+    PREFERRED_URL_SCHEME="https",
+)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# --- Gemini ---
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY", ""))  # თუ არაა საჭირო, დატოვე ცარიელი
+# --- Gemini API Config ---
+# ENV-ში უნდა გქონდეს GEMINI_API_KEY=<შენი key>
+genai.configure(api_key=os.environ["GEMINI_API_KEY"])
 model = genai.GenerativeModel("gemini-1.5-flash")
 
 # --- Helpers ---
@@ -46,9 +36,9 @@ def extract_text_from_pdf(path):
     try:
         with pdfplumber.open(path) as pdf:
             for page in pdf.pages:
-                t = page.extract_text()
-                if t:
-                    text += t + "\n"
+                page_text = page.extract_text()
+                if page_text:
+                    text += page_text + "\n"
     except Exception as e:
         print(f"[PDF Error] {e}")
     return text
@@ -81,21 +71,18 @@ def analyze_idea(idea_text):
 7. რეკომენდაცია იდეის გაუმჯობესებისთვის
 """
     try:
-        if not os.environ.get("GEMINI_API_KEY"):
-            return "⚠️ GEMINI_API_KEY არაა მითითებული (.env-ში) — პასუხი დაგენერირდება მხოლოდ მაშინ, როცა ჩასვამ."
-        resp = model.generate_content(prompt)
-        return resp.text
+        response = model.generate_content(prompt)
+        return response.text
     except Exception as e:
-        return f"❌ Gemini API შეცდომა: {e}"
+        return f"❌ შეცდომა Gemini API-სთან დაკავშირებისას: {e}"
 
 def save_analysis_to_file(content, filename="analysis.txt"):
-    path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    with open(path, "w", encoding="utf-8") as f:
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    with open(filepath, "w", encoding="utf-8") as f:
         f.write(content)
-    return path
+    return filepath
 
 def upload_to_user_drive(filepath, filename, folder_id=None):
-    # საჭირო ხდება OAuth-ის გავლა /login-ით
     if "credentials" not in session:
         return None
     creds = google.oauth2.credentials.Credentials(**session['credentials'])
@@ -106,11 +93,14 @@ def upload_to_user_drive(filepath, filename, folder_id=None):
         metadata['parents'] = [folder_id]
 
     media = MediaFileUpload(filepath, resumable=True)
-    created = service.files().create(body=metadata, media_body=media, fields='id').execute()
-    file_id = created.get('id')
+    uploaded = service.files().create(body=metadata, media_body=media, fields='id').execute()
+    file_id = uploaded.get('id')
 
-    # სურვილისამებრ გახადე საჯარო ბმული
-    service.permissions().create(fileId=file_id, body={'type': 'anyone', 'role': 'reader'}).execute()
+    service.permissions().create(
+        fileId=file_id,
+        body={'type': 'anyone', 'role': 'reader'}
+    ).execute()
+
     return f"https://drive.google.com/file/d/{file_id}/view?usp=sharing"
 
 def save_and_return_link(idea_text, base_filename="idea_analysis"):
@@ -119,25 +109,22 @@ def save_and_return_link(idea_text, base_filename="idea_analysis"):
     filepath = save_analysis_to_file(result, filename)
     drive_link = upload_to_user_drive(filepath, filename)
 
-    hist = session.get('history', [])
-    hist.append({'filename': filename, 'drive_link': drive_link})
-    session['history'] = hist[-30:]
+    if 'history' not in session:
+        session['history'] = []
+    session['history'].append({'filename': filename, 'drive_link': drive_link})
+    session['history'] = session['history'][-30:]
     return drive_link, result
 
-# --- OAuth (Web Client, localhost) ---
-# შენს Google OAuth client-ს უნდა ჰქონდეს Authorized redirect URI:
-#   http://localhost:5000/oauth2callback
-# და JavaScript origin:
-#   http://localhost:5000
-def _redirect_uri():
-    # ლოკალზე HTTP, პროდზე HTTPS
-    scheme = "http" if ENV == "local" else "https"
-    return url_for("oauth2callback", _external=True, _scheme=scheme)
+# --- Health check (Render-friendly) ---
+@app.route("/healthz")
+def healthz():
+    return "ok", 200
 
+# --- OAuth2 ---
 @app.before_request
 def require_login():
-    # ლოგინამდე დაშვებული endpoint-ები
-    allowed = {'login', 'oauth2callback', 'static', 'index'}
+    # ლოგინამდე დაშვებული endpoint-ები (root '/' აქ არ შედის!)
+    allowed = ['login', 'oauth2callback', 'static', 'healthz']
     if request.endpoint in allowed or 'credentials' in session:
         return
     return redirect(url_for('login'))
@@ -147,40 +134,42 @@ def login():
     flow = Flow.from_client_secrets_file(
         "client_secret.json",
         scopes=["https://www.googleapis.com/auth/drive.file"],
-        redirect_uri=_redirect_uri(),
+        redirect_uri=url_for("oauth2callback", _external=True, _scheme="https"),
     )
-    auth_url, state = flow.authorization_url(
+    authorization_url, state = flow.authorization_url(
         access_type="offline",
         include_granted_scopes="true",
         prompt="consent",
     )
     session["state"] = state
-    return redirect(auth_url)
+    return redirect(authorization_url)
 
 @app.route("/oauth2callback")
 def oauth2callback():
     state = session.get("state")
+
+    # თუ სესიაში state არაა, არ ვაძლევთ 400-ს — ვაბრუნებთ /login-ზე, რომ სუფთად დაიწყოს flow
     if not state:
-        # ლოკალზე უბრალოდ დავაბრუნოთ login-ზე, რომ თავიდან დაიწყოს flow
         return redirect(url_for("login"))
 
     flow = Flow.from_client_secrets_file(
         "client_secret.json",
         scopes=["https://www.googleapis.com/auth/drive.file"],
         state=state,
-        redirect_uri=_redirect_uri(),
+        redirect_uri=url_for("oauth2callback", _external=True, _scheme="https"),
     )
     flow.fetch_token(authorization_response=request.url)
 
-    creds = flow.credentials
+    credentials = flow.credentials
     session["credentials"] = {
-        "token": creds.token,
-        "refresh_token": creds.refresh_token,
-        "token_uri": creds.token_uri,
-        "client_id": creds.client_id,
-        "client_secret": creds.client_secret,
-        "scopes": creds.scopes,
+        "token": credentials.token,
+        "refresh_token": credentials.refresh_token,
+        "token_uri": credentials.token_uri,
+        "client_id": credentials.client_id,
+        "client_secret": credentials.client_secret,
+        "scopes": credentials.scopes,
     }
+
     session.pop("state", None)
     return redirect(url_for("index"))
 
@@ -189,7 +178,7 @@ def logout():
     session.clear()
     return redirect(url_for("login"))
 
-# --- Views ---
+# --- Main Route ---
 @app.route("/", methods=["GET", "POST"])
 def index():
     result = None
@@ -199,33 +188,31 @@ def index():
     if request.method == "POST":
         text_idea = request.form.get("text_idea")
         file = request.files.get("file")
-        idea_text = ""
-        source_name = "text_input"
 
+        idea_text = ""
         if text_idea and text_idea.strip():
             idea_text = text_idea.strip()
+            source_name = "text_input"
         elif file and file.filename:
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
             file.save(filepath)
-            source_name = file.filename
             if filepath.lower().endswith(".pdf"):
                 idea_text = extract_text_from_pdf(filepath)
             elif filepath.lower().endswith(".pptx"):
                 idea_text = extract_text_from_pptx(filepath)
             else:
                 error = "❌ მხოლოდ .pdf და .pptx ფაილებია მხარდაჭერილი."
+                return render_template("index.html", result=None, drive_link=None, error=error, history=session.get('history', []))
+            source_name = file.filename
         else:
             error = "გთხოვთ, შეიყვანეთ ტექსტი ან ატვირთეთ ფაილი."
 
-        if not error and idea_text.strip():
+        if idea_text.strip():
             drive_link, result = save_and_return_link(idea_text, base_filename=source_name)
 
-    return render_template("index.html",
-                           result=result,
-                           drive_link=drive_link,
-                           error=error,
-                           history=session.get('history', []))
+    return render_template("index.html", result=result, drive_link=drive_link, error=error, history=session.get('history', []))
 
-# --- Run local ---
+# --- Run (local dev) ---
 if __name__ == "__main__":
-    app.run(debug=True, host="127.0.0.1", port=PORT)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(debug=True, host="0.0.0.0", port=port)
