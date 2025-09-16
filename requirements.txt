@@ -1,10 +1,10 @@
-Flask
-python-dotenv
+gunicorn
 pdfplumber
 python-pptx
-google-auth
-google-auth-oauthlib
-google-auth-httplib2
-google-api-python-client
+Flask
+python-dotenv
 google-generativeai
-gunicorn
+google-auth-oauthlib
+google-api-python-client
+google-auth
+
