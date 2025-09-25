@@ -10,6 +10,8 @@ import google.oauth2.credentials
 import google.auth.transport.requests
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
+from flask import request
+redirect_uri = url_for("oauth2callback", _external=True, _scheme=request.scheme)
 
 # --- Flask Config ---
 load_dotenv()
