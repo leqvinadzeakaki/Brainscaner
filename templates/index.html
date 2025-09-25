@@ -23,7 +23,7 @@
     </div>
     {% endif %}
 
-    <form method="POST" enctype="multipart/form-data" class="idea-form" action="{{ url_for(\'index\') }}" >
+    <form method="POST" enctype="multipart/form-data" class="idea-form">
       <textarea name="text_idea" rows="8" placeholder="მაგ: შევქმნათ აპლიკაცია, რომელიც ფერმერებს დაეხმარება ამინდის პროგნოზირებაში..."></textarea>
 
       <div class="form-actions">
@@ -109,7 +109,7 @@
       <ul style="list-style:none; padding-left:0;">
         {% for item in history %}
           <li style="margin-bottom: 0.5rem;">
-            📎 <a href="{{ item.drive_link }}" target="_blank">{{ item.filename }}</a>
+            📎 {% if item.drive_link %}<a href="{{ item.drive_link }}" target="_blank">{{ item.filename }}</a>{% else %}{{ item.filename }} (ლოკალურად){% endif %}
           </li>
         {% endfor %}
       </ul>
