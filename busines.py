@@ -10,57 +10,9 @@ import google.oauth2.credentials
 import google.auth.transport.requests
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
-from werkzeug.middleware.proxy_fix import ProxyFix
-import os, urllib.parse
-from flask import url_for, request
-
-PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "").rstrip("/")
-
-def external_url_for(endpoint, **values):
-    """
-    აგენერირებს გარე ბმულს PUBLIC_BASE_URL-ის გამოყენებით.
-    თუ PUBLIC_BASE_URL არაა დაყენებული, fallback -> url_for(_external=True).
-    """
-    if PUBLIC_BASE_URL:
-        path = url_for(endpoint, **values)
-        return urllib.parse.urljoin(PUBLIC_BASE_URL + "/", path.lstrip("/"))
-    return url_for(endpoint, _external=True, _scheme=request.scheme)
-
-
-app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
-app.config['PREFERRED_URL_SCHEME'] = 'https'  # თუ გაქვს SSL
-
 
 # --- Flask Config ---
 load_dotenv()
-
-
-import os
-from google_auth_oauthlib.flow import Flow
-from flask import request, url_for
-
-def build_oauth_flow():
-    client_id = os.environ.get("GOOGLE_CLIENT_ID")
-    client_secret = os.environ.get("GOOGLE_CLIENT_SECRET")
-    if not client_id or not client_secret:
-        raise RuntimeError("GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET are not set in environment")
-
-    client_config = {
-        "web": {
-            "client_id": client_id,
-            "project_id": "brainscanner",
-            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-            "token_uri": "https://oauth2.googleapis.com/token",
-            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-            "client_secret": client_secret,
-            "redirect_uris": [],
-            "javascript_origins": []
-        }
-    }
-    redirect_uri = url_for("oauth2callback", _external=True, _scheme=request.scheme)
-    flow = build_oauth_flow()
-    return flow
-
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me")
@@ -171,15 +123,16 @@ def healthz():
 # --- OAuth2 ---
 @app.before_request
 def require_login():
-    # ლოგინამდე დაშვებული endpoint-ები (root '/' აქ არ შედის!)
-    allowed = ['login', 'oauth2callback', 'static', 'healthz']
-    if request.endpoint in allowed or 'credentials' in session:
-        return
-    return redirect(url_for('login'))
+    # Google OAuth login disabled — allow all requests without redirecting to /login
+    # (previous logic required 'credentials' in session)
+    return None
 
 @app.route("/login")
 def login():
-    flow = build_oauth_flow(),
+    flow = Flow.from_client_secrets_file(
+        "client_secret.json",
+        scopes=["https://www.googleapis.com/auth/drive.file"],
+        redirect_uri=url_for("oauth2callback", _external=True, _scheme="https"),
     )
     authorization_url, state = flow.authorization_url(
         access_type="offline",
@@ -197,7 +150,11 @@ def oauth2callback():
     if not state:
         return redirect(url_for("login"))
 
-    flow = build_oauth_flow(),
+    flow = Flow.from_client_secrets_file(
+        "client_secret.json",
+        scopes=["https://www.googleapis.com/auth/drive.file"],
+        state=state,
+        redirect_uri=url_for("oauth2callback", _external=True, _scheme="https"),
     )
     flow.fetch_token(authorization_response=request.url)
 
@@ -220,7 +177,7 @@ def logout():
     return redirect(url_for("login"))
 
 # --- Main Route ---
-@app.route("/", methods=["GET", "POST"], strict_slashes=False)
+@app.route("/", methods=["GET", "POST"])
 def index():
     result = None
     drive_link = None
