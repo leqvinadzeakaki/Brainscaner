@@ -2,11 +2,8 @@ services:
   - type: web
     name: brainscanner
     env: python
-    rootDir: Brainscaner-master-9,11,2025/Brainscaner-master
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn busines:app
     healthCheckPath: /healthz
-    envVars:
-      - key: GEMINI_API_KEY
-        value: AIzaSyBz7yRvZWZPEuV0cp1925vqOe0LUF8agwc 
+
 
