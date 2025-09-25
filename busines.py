@@ -10,6 +10,11 @@ import google.oauth2.credentials
 import google.auth.transport.requests
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
+from werkzeug.middleware.proxy_fix import ProxyFix
+
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+app.config['PREFERRED_URL_SCHEME'] = 'https'  # თუ გაქვს SSL
+
 
 # --- Flask Config ---
 load_dotenv()
