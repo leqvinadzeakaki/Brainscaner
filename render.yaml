@@ -5,5 +5,8 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn busines:app
     healthCheckPath: /healthz
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
 
 
