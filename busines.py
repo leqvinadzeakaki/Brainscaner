@@ -11,6 +11,31 @@ import google.auth.transport.requests
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from flask import request
+import os
+from google_auth_oauthlib.flow import Flow
+
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET")
+
+client_config = {
+  "web": {
+    "client_id": GOOGLE_CLIENT_ID,
+    "project_id": "brainscanner",
+    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+    "token_uri": "https://oauth2.googleapis.com/token",
+    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+    "client_secret": GOOGLE_CLIENT_SECRET,
+    "redirect_uris": [],         # ცარიელი დატოვე; ფაქტიურად redirect_uri-ს runtime-ზე გადასცემ Flow-ს
+    "javascript_origins": []
+  }
+}
+
+flow = Flow.from_client_config(
+    client_config,
+    scopes=["https://www.googleapis.com/auth/drive.file"],
+    redirect_uri=redirect_uri
+)
+
 redirect_uri = url_for("oauth2callback", _external=True, _scheme=request.scheme)
 
 # --- Flask Config ---
