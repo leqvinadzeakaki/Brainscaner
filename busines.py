@@ -123,9 +123,11 @@ def healthz():
 # --- OAuth2 ---
 @app.before_request
 def require_login():
-    # Google OAuth login disabled — allow all requests without redirecting to /login
-    # (previous logic required 'credentials' in session)
-    return None
+    # ლოგინამდე დაშვებული endpoint-ები (root '/' აქ არ შედის!)
+    allowed = ['login', 'oauth2callback', 'static', 'healthz']
+    if request.endpoint in allowed or 'credentials' in session:
+        return
+    return redirect(url_for('login'))
 
 @app.route("/login")
 def login():
