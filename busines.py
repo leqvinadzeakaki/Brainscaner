@@ -11,6 +11,21 @@ import google.auth.transport.requests
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from werkzeug.middleware.proxy_fix import ProxyFix
+import os, urllib.parse
+from flask import url_for, request
+
+PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "").rstrip("/")
+
+def external_url_for(endpoint, **values):
+    """
+    აგენერირებს გარე ბმულს PUBLIC_BASE_URL-ის გამოყენებით.
+    თუ PUBLIC_BASE_URL არაა დაყენებული, fallback -> url_for(_external=True).
+    """
+    if PUBLIC_BASE_URL:
+        path = url_for(endpoint, **values)
+        return urllib.parse.urljoin(PUBLIC_BASE_URL + "/", path.lstrip("/"))
+    return url_for(endpoint, _external=True, _scheme=request.scheme)
+
 
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 app.config['PREFERRED_URL_SCHEME'] = 'https'  # თუ გაქვს SSL
