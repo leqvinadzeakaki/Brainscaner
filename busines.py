@@ -14,6 +14,34 @@ from googleapiclient.http import MediaFileUpload
 # --- Flask Config ---
 load_dotenv()
 
+
+import os
+from google_auth_oauthlib.flow import Flow
+from flask import request, url_for
+
+def build_oauth_flow():
+    client_id = os.environ.get("GOOGLE_CLIENT_ID")
+    client_secret = os.environ.get("GOOGLE_CLIENT_SECRET")
+    if not client_id or not client_secret:
+        raise RuntimeError("GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET are not set in environment")
+
+    client_config = {
+        "web": {
+            "client_id": client_id,
+            "project_id": "brainscanner",
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+            "client_secret": client_secret,
+            "redirect_uris": [],
+            "javascript_origins": []
+        }
+    }
+    redirect_uri = url_for("oauth2callback", _external=True, _scheme=request.scheme)
+    flow = build_oauth_flow()
+    return flow
+
+
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me")
 
@@ -131,10 +159,7 @@ def require_login():
 
 @app.route("/login")
 def login():
-    flow = Flow.from_client_secrets_file(
-        "client_secret.json",
-        scopes=["https://www.googleapis.com/auth/drive.file"],
-        redirect_uri=url_for("oauth2callback", _external=True, _scheme=request.scheme),
+    flow = build_oauth_flow(),
     )
     authorization_url, state = flow.authorization_url(
         access_type="offline",
@@ -152,11 +177,7 @@ def oauth2callback():
     if not state:
         return redirect(url_for("login"))
 
-    flow = Flow.from_client_secrets_file(
-        "client_secret.json",
-        scopes=["https://www.googleapis.com/auth/drive.file"],
-        state=state,
-        redirect_uri=url_for("oauth2callback", _external=True, _scheme=request.scheme),
+    flow = build_oauth_flow(),
     )
     flow.fetch_token(authorization_response=request.url)
 
