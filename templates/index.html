@@ -23,7 +23,7 @@
     </div>
     {% endif %}
 
-    <form method="POST" enctype="multipart/form-data" class="idea-form">
+    <form method="POST" enctype="multipart/form-data" class="idea-form" action="{{ url_for(\'index\') }}" >
       <textarea name="text_idea" rows="8" placeholder="მაგ: შევქმნათ აპლიკაცია, რომელიც ფერმერებს დაეხმარება ამინდის პროგნოზირებაში..."></textarea>
 
       <div class="form-actions">
